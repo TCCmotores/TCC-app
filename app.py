@@ -3,8 +3,8 @@ from models.thermodynamics import EngineThermodynamics
 from models.emissions import MarineEmissionsTwin
 
 # 1. Configuração da Página e Título
-st.set_page_config(page_title="TCC EFOMM por enquanto", layout="wide")
-st.title("TCC EFOMM por enquanto")
+st.set_page_config(page_title="TCC EFOMM", layout="wide")
+st.title("TCC EFOMM")
 st.markdown("Simulador Digital Twin para análise de Eficiência e Emissões de Motores Marítimos.")
 
 # 2. Painel Lateral - Entrada de Dados (Simulador What-If)
