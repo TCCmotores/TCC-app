@@ -2,7 +2,7 @@ import streamlit as st
 from models.thermodynamics import EngineThermodynamics
 from models.emissions import MarineEmissionsTwin
 
-# 1. Configuração da Página e Título (Alterado para o novo nome)
+# 1. Configuração da Página e Título
 st.set_page_config(page_title="TCC EFOMM por enquanto", layout="wide")
 st.title("TCC EFOMM por enquanto")
 st.markdown("Simulador Digital Twin para análise de Eficiência e Emissões de Motores Marítimos.")
@@ -15,7 +15,7 @@ rpm = st.sidebar.slider("Rotação do Motor (RPM)", min_value=50, max_value=3000
 diametro = st.sidebar.number_input("Diâmetro do Cilindro (mm)", min_value=100.0, max_value=1000.0, value=500.0, step=10.0)
 curso = st.sidebar.number_input("Curso do Pistão (mm)", min_value=100.0, max_value=3000.0, value=2000.0, step=10.0)
 
-# GNL Removido conforme solicitado. Focado apenas em Diesel Marítimo.
+# Apenas HFO e MDO disponíveis
 combustivel = st.sidebar.selectbox("Tipo de Combustível", [
     "HFO (Óleo Combustível Pesado)", 
     "MDO (Óleo Diesel Marítimo)"
@@ -26,10 +26,9 @@ st.write("---")
 # 3. Processamento e Cálculos
 if st.button("Executar Simulação do Gêmeo Digital"):
     
-    # --- MÓDULO TERMODINÂMICO (Brunetti) ---
+    # --- MÓDULO TERMODINÂMICO ---
     motor = EngineThermodynamics(potencia, rpm, diametro, curso)
     
-    # Agora o RPM afeta diretamente os resultados matemáticos
     torque_calculado = motor.calcular_torque()
     eficiencia_calculada = motor.calcular_eficiencia_termica()
     consumo_calculado = motor.calcular_consumo_especifico()
@@ -42,7 +41,8 @@ if st.button("Executar Simulação do Gêmeo Digital"):
     
     st.write("---")
     
-    # --- MÓDULO DE EMISSÕES (MARPOL / DNV GL / ABS) ---
+    # --- MÓDULO DE EMISSÕES ---
+    # Agora envia as 3 informações corretamente sem causar erro
     emissoes = MarineEmissionsTwin(potencia, consumo_calculado, combustivel)
     co2, sox, nox = emissoes.calcular_emissoes()
     
@@ -54,9 +54,9 @@ if st.button("Executar Simulação do Gêmeo Digital"):
 
 st.write("---")
 
-# 4. Rodapé / Caixa Verde (Texto atualizado)
+# 4. Rodapé
 st.markdown("""
 <div style='background-color: #2e7d32; padding: 15px; border-radius: 8px; color: white; text-align: center; font-size: 16px; font-weight: bold;'>
-    Simulador TCC EFOMM operando com sucesso! Os parâmetros de RPM agora impactam fisicamente o Torque e a Eficiência.
+    Simulador TCC EFOMM operando com sucesso!
 </div>
 """, unsafe_allow_html=True)
