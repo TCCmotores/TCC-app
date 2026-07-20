@@ -1,37 +1,28 @@
 class MarineEmissionsTwin:
-    def __init__(self):
-        # Dicionário incorporando o fator estequiométrico Cf
-        self.cf_factors = {
-            'Diesel/Gas Oil (MGO)': 3.206,
-            'Heavy Fuel Oil (HFO)': 3.114,
-            'Liquefied Natural Gas (LNG)': 2.750,
-            'Methanol': 1.375
-        }
-    
-    def fetch_cf_factor(self, fuel_type):
-        return self.cf_factors.get(fuel_type, 3.206)
+    def __init__(self, potencia_kw, consumo_g_kwh, tipo_combustivel):
+        # Recebe os dados exatos vindos do painel principal
+        self.potencia = potencia_kw
+        self.consumo = consumo_g_kwh
+        self.combustivel = tipo_combustivel
 
-    def calculate_eedi_mepc364(self, power_kw, sfc_g_kwh, capacity_dwt, v_ref_knots, fuel_type):
-        cf = self.fetch_cf_factor(fuel_type)
-        # O processamento da MEPC requer a translação do consumo específico horário 
-        # juntamente com o fator CF associado. Resulta em gCO2 / ton.nautical_mile
-        total_co2_emission = power_kw * cf * sfc_g_kwh  
-        transport_work = capacity_dwt * v_ref_knots
+    def calcular_emissoes(self):
+        # 1. Calcula o consumo total de combustível em kg/h
+        # (Consumo específico * Potência) / 1000 para converter gramas em quilos
+        consumo_kg_h = (self.consumo * self.potencia) / 1000
         
-        if transport_work == 0:
-            return 0.0
-        return total_co2_emission / transport_work
-
-    def get_marpol_nox_tier_limit(self, engine_rpm, tier="Tier III"):
-        # Mapeamento estrito da resolução do Anexo VI MARPOL
-        if engine_rpm < 130:
-            return 3.4 if tier == "Tier III" else (14.4 if tier == "Tier II" else 17.0)
-        elif engine_rpm < 2000:
-            if tier == "Tier III":
-                return 9.0 * (engine_rpm ** -0.2)
-            elif tier == "Tier II":
-                return 44.0 * (engine_rpm ** -0.23)
-            else:
-                return 45.0 * (engine_rpm ** -0.2)
-        else:
-            return 2.0 if tier == "Tier III" else (7.7 if tier == "Tier II" else 9.8)
+        # 2. Fatores de emissão baseados nas diretrizes da MARPOL / DNV GL
+        if "HFO" in self.combustivel:
+            fator_co2 = 3.114  # kg CO2 por kg de combustível
+            fator_sox = 0.045  # Estimativa de Enxofre pesado
+            fator_nox = 0.075  
+        else: # "MDO" (Óleo Diesel Marítimo)
+            fator_co2 = 3.206  
+            fator_sox = 0.015  # Combustível mais limpo, menos SOx
+            fator_nox = 0.055  
+            
+        # 3. Calcula os valores finais
+        co2 = consumo_kg_h * fator_co2
+        sox = consumo_kg_h * fator_sox
+        nox = consumo_kg_h * fator_nox
+        
+        return co2, sox, nox
