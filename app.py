@@ -13,11 +13,7 @@ st.set_page_config(
 # ==========================================
 # TÍTULO E CABEÇALHO
 # ==========================================
-st.title("🚢 Digital Twin: Monitoramento e Eficiência de Motores Marítimos")
-st.markdown("""
-Ferramenta computacional desenvolvida para análise termodinâmica, controle de emissões (MARPOL/IMO - DNV GL / ABS) 
-e integridade mecânica de motores marítimos de combustão interna.
-""")
+st.title("Software para análise")
 st.divider()
 
 # ==========================================
@@ -124,4 +120,4 @@ with tab2:
 
 # Rodapé
 st.markdown("---")
-st.markdown("<p style='text-align: center; color: gray;'>Desenvolvido por Renê para o Trabalho de Conclusão de Curso (TCC) - Engenharia e Operações Navais.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: gray;'>Desenvolvido por: Costa, Lucas Duarte, Bernardo</p>", unsafe_allow_html=True)
