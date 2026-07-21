@@ -33,10 +33,6 @@ mep = st.sidebar.number_input("Pressão Média Efetiva Indicada - MEP (bar)", mi
 eficiencia_mecanica = st.sidebar.slider("Eficiência Mecânica Estimada (%)", min_value=50, max_value=100, value=85)
 consumo_atual = st.sidebar.number_input("Consumo de Combustível Atual (kg/h)", min_value=1.0, value=45.0, step=1.0)
 
-# Dados de Projeto (Baseline para o Gêmeo Digital)
-st.sidebar.subheader("Baseline de Projeto (Bula)")
-consumo_projeto = st.sidebar.number_input("Consumo Ideal de Fábrica (kg/h)", min_value=1.0, value=42.0, step=1.0)
-
 # ==========================================
 # PROCESSAMENTO MATEMÁTICO
 # ==========================================
@@ -79,44 +75,67 @@ with tab1:
         delta_color = "normal" if bsfc < 220 else "inverse"
         st.metric(label="Consumo Específico (BSFC)", value=f"{bsfc:.2f} g/kWh", delta=bsfc_delta, delta_color=delta_color)
 
-    st.subheader("Diagnóstico do Gêmeo Digital (Comparação de Projeto)")
-    
-    # Lógica do Digital Twin
-    desvio_consumo = ((consumo_atual - consumo_projeto) / consumo_projeto) * 100
-    
-    if desvio_consumo <= 2:
-        st.success(f"✅ O motor está operando dentro dos parâmetros ideais do fabricante. Desvio de apenas {desvio_consumo:.1f}%.")
-    elif desvio_consumo <= 5:
-        st.warning(f"⚠️ Alerta: O consumo está {desvio_consumo:.1f}% acima da Baseline de projeto. Possível desgaste leve ou injeção desregulada.")
-    else:
-        st.error(f"🚨 Crítico: O motor está consumindo {desvio_consumo:.1f}% a mais que o ideal de projeto! Risco de degradação térmica profunda (verificar anéis de segmento e bicos injetores).")
-
 # ------------------------------------------
 # ABA 2: EMISSÕES (MARPOL / CLASSIFICADORAS)
 # ------------------------------------------
 with tab2:
     st.header("Inventário de Emissões de GEE (Normas ABS / DNV GL)")
     
-    tipo_combustivel = st.selectbox("Selecione o Tipo de Combustível Utilizado:", ["MDO (Marine Diesel Oil)", "HFO (Heavy Fuel Oil)"])
+    col_comb1, col_comb2 = st.columns(2)
     
-    # Fatores de Emissão (Aproximados - Padrão IMO)
-    if tipo_combustivel == "MDO (Marine Diesel Oil)":
-        f_co2, f_sox, f_nox = 3.206, 0.002, 0.055
-    else:
-        f_co2, f_sox, f_nox = 3.114, 0.050, 0.070
+    with col_comb1:
+        tipo_combustivel = st.selectbox("Selecione o Combustível:", ["MDO (Marine Diesel Oil)", "HFO (Heavy Fuel Oil)"])
+    with col_comb2:
+        # Padrão MARPOL global é 0.5%. Em HFO costuma ser mais alto se não tratado.
+        valor_padrao_enxofre = 0.50 if tipo_combustivel == "MDO (Marine Diesel Oil)" else 2.50
+        teor_enxofre = st.number_input("Teor de Enxofre no Combustível (%)", min_value=0.01, max_value=5.00, value=valor_padrao_enxofre, step=0.05)
+    
+    # Fatores de Emissão
+    f_co2 = 3.206 if tipo_combustivel == "MDO (Marine Diesel Oil)" else 3.114
+    
+    # SOx: 1g de Enxofre (S) gera aprox. 2g de Dióxido de Enxofre (SO2) após a queima
+    f_sox = (teor_enxofre / 100) * 2 
+    
+    # NOx: Fator genérico aproximado por kg de combustível consumido
+    f_nox = 0.055 if tipo_combustivel == "MDO (Marine Diesel Oil)" else 0.070
     
     # Cálculos diários (kg/h * 24h = kg/dia) -> divide por 1000 para Toneladas/dia
     emis_co2 = (consumo_atual * f_co2 * 24) / 1000
     emis_sox = (consumo_atual * f_sox * 24) / 1000
-    emis_nox = (consumo_atual * f_nox * 24) / 1000
+    emis_nox_ton = (consumo_atual * f_nox * 24) / 1000
 
     col_e1, col_e2, col_e3 = st.columns(3)
     
-    col_e1.metric(label="Emissão de CO₂", value=f"{emis_co2:.2f} Ton/dia", help="Dióxido de Carbono")
-    col_e2.metric(label="Emissão de SOx", value=f"{emis_sox:.4f} Ton/dia", help="Óxidos de Enxofre (Controlado pelo Anexo VI MARPOL)")
-    col_e3.metric(label="Emissão de NOx", value=f"{emis_nox:.4f} Ton/dia", help="Óxidos de Nitrogênio (Regras Tier II/III)")
+    col_e1.metric(label="Emissão de CO₂", value=f"{emis_co2:.2f} Ton/dia", help="Dióxido de Carbono (Efeito Estufa)")
+    col_e2.metric(label="Emissão de SOx", value=f"{emis_sox:.4f} Ton/dia", help="Depende do Teor de Enxofre inserido.")
+    col_e3.metric(label="Emissão de NOx (Total)", value=f"{emis_nox_ton:.4f} Ton/dia", help="Massa total de Óxidos de Nitrogênio gerada.")
     
-    st.info("💡 Estes cálculos simulam as auditorias de eficiência e poluição requeridas pelas Sociedades Classificadoras para a obtenção de certificados de conformidade ambiental.")
+    st.divider()
+    
+    # --- AUDITORIA MARPOL (ANEXO VI - NOx) ---
+    st.subheader("Auditoria MARPOL (Limites de NOx - Tier II)")
+    st.markdown("A MARPOL regula a emissão específica de NOx (g/kWh) baseada na Rotação Nominal (RPM) do motor.")
+    
+    # Fórmula MARPOL Tier II para limite de NOx (g/kWh)
+    if rpm < 130:
+        limite_nox_g_kwh = 14.4
+    elif rpm < 2000:
+        limite_nox_g_kwh = 44.0 * (rpm ** -0.23)
+    else:
+        limite_nox_g_kwh = 7.7
+        
+    # Calcular a emissão específica de NOx do motor atual
+    nox_gerado_hora_g = consumo_atual * f_nox * 1000 # Convertendo kg para gramas
+    nox_especifico_atual = nox_gerado_hora_g / pb_kw if pb_kw > 0 else 0
+    
+    col_n1, col_n2 = st.columns(2)
+    col_n1.metric(label="NOx Específico do Motor", value=f"{nox_especifico_atual:.2f} g/kWh")
+    col_n2.metric(label="Limite Máximo MARPOL (Para o RPM atual)", value=f"{limite_nox_g_kwh:.2f} g/kWh")
+    
+    if nox_especifico_atual <= limite_nox_g_kwh:
+        st.success("✅ **APROVADO:** O motor atende às regulamentações de emissão de NOx da IMO Tier II.")
+    else:
+        st.error(f"🚨 **REPROVADO:** O motor excede o limite da MARPOL em {(nox_especifico_atual - limite_nox_g_kwh):.2f} g/kWh. Necessário ajuste de combustão ou sistema SCR.")
 
 # Rodapé
 st.markdown("---")
